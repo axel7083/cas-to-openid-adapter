@@ -89,10 +89,10 @@ func main() {
 	router := exampleop.SetupServer(opts, oidcStorage)
 
 	server := &http.Server{
-		Addr:    "0.0.0.0:" + opts.Port,
+		Addr:    opts.Host + ":" + opts.Port,
 		Handler: router,
 	}
-	log.Printf("server listening on http://localhost:%s/", opts.Port)
+	log.Printf("server listening on http://%s:%s/", opts.Host, opts.Port)
 	log.Println("press ctrl+c to stop")
 	err = server.ListenAndServe()
 	if err != nil {
