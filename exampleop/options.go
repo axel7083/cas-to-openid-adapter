@@ -10,6 +10,7 @@ import (
 type Options struct {
 	Host                string `env:"HOST" default:"localhost"`
 	Port                string `env:"PORT" default:"9998"`
+	PrefixURL           string `env:"PREFIX_URL" default:""`
 	Issuer              string `env:"ISSUER" default:"http://localhost:9998/"`
 	CasAddress          string `env:"CAS_ADDRESS"`
 	CasLoginEndpoint    string `env:"CAS_LOGIN_ENDPOINT" default:"/login"`
@@ -32,15 +33,14 @@ func ParseOptionsFromEnv(opts interface{}) error {
 	for i := 0; i < typ.NumField(); i++ {
 		field := val.Field(i)
 		tag := typ.Field(i).Tag.Get("env")
-		defaultVal := typ.Field(i).Tag.Get("default")
-
 		if tag == "" {
 			return fmt.Errorf("missing env tag for field: %s", typ.Field(i).Name)
 		}
 
 		value, ok := os.LookupEnv(tag)
 		if !ok {
-			if defaultVal == "" {
+			defaultVal, exist := typ.Field(i).Tag.Lookup("default")
+			if !exist {
 				return fmt.Errorf("missing required env variable: %s", tag)
 			} else {
 				value = defaultVal
