@@ -8,14 +8,15 @@ import (
 )
 
 var (
-	// we use the default login UI and pass the (auth request) id
-	defaultLoginURL = func(id string) string {
-		return "/cas/login?authRequestID=" + id
-	}
-
 	// clients to be used by the storage interface
 	clients = map[string]*Client{}
 )
+
+func generateLoginURL(prefix string) func(string) string {
+	return func(id string) string {
+		return prefix + "/cas/login?authRequestID=" + id
+	}
+}
 
 // Client represents the storage model of an OAuth/OIDC client
 // this could also be your database model
@@ -143,8 +144,9 @@ func RegisterClients(registerClients ...*Client) {
 // user-defined redirectURIs may include:
 // - http://localhost with port specification (e.g. http://localhost:9999/auth/callback)
 // (the example will be used as default, if none is provided)
-func WebClient(id, secret string, redirectURIs ...string) *Client {
+func WebClient(id, secret string, prefixUrl string, redirectURIs ...string) *Client {
 	if len(redirectURIs) == 0 {
+		println("WebClient registering client without any redirectURIs.")
 		redirectURIs = []string{
 			"http://localhost:9999/auth/callback",
 		}
@@ -153,9 +155,9 @@ func WebClient(id, secret string, redirectURIs ...string) *Client {
 		id:                             id,
 		secret:                         secret,
 		redirectURIs:                   redirectURIs,
-		applicationType:                op.ApplicationTypeWeb,
+		applicationType:                op.ApplicationTypeNative,
 		authMethod:                     oidc.AuthMethodBasic,
-		loginURL:                       defaultLoginURL,
+		loginURL:                       generateLoginURL(prefixUrl),
 		responseTypes:                  []oidc.ResponseType{oidc.ResponseTypeCode},
 		grantTypes:                     []oidc.GrantType{oidc.GrantTypeCode, oidc.GrantTypeRefreshToken},
 		accessTokenType:                op.AccessTokenTypeBearer,

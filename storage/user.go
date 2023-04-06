@@ -27,7 +27,6 @@ type UserStore interface {
 	GetUserByID(string) *User
 	ExampleClientID() string
 	AppendUser(user *User)
-	ClearUserByID(string)
 }
 
 type userStore struct {
@@ -51,8 +50,4 @@ func (u userStore) GetUserByID(id string) *User {
 
 func (u userStore) AppendUser(user *User) {
 	u.users[user.ID] = user
-}
-
-func (u userStore) ClearUserByID(id string) {
-	delete(u.users, id)
 }

@@ -67,6 +67,13 @@ func loadPublicKey(file string) (*rsa.PublicKey, error) {
 	return publicKey, nil
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received %s request for %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 
 	opts := exampleop.Options{}
@@ -86,11 +93,13 @@ func main() {
 	}
 
 	oidcStorage := storage.NewStorage(storage.NewUserStore(), privateKey, opts.SigningKeyID, publicKey)
+
+	log.Printf("creating server with prefix %s", opts.PrefixURL)
 	router := exampleop.SetupServer(opts, oidcStorage)
 
 	server := &http.Server{
 		Addr:    opts.Host + ":" + opts.Port,
-		Handler: router,
+		Handler: loggingMiddleware(router),
 	}
 	log.Printf("server listening on http://%s:%s/", opts.Host, opts.Port)
 	log.Println("press ctrl+c to stop")

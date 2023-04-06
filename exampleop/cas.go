@@ -8,8 +8,11 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/text/language"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 )
 
 type authenticate interface {
@@ -18,11 +21,14 @@ type authenticate interface {
 
 type cas struct {
 	store               authenticate
+	prefixURL           string
 	casAddress          string
 	casLoginEndpoint    string
+	casLogoutEndpoint   string
 	casValidateEndpoint string
 	router              *mux.Router
 	callback            string
+	logoutCallback      string
 	clientCallback      func(context.Context, string) string
 }
 
@@ -79,13 +85,16 @@ func ConvertCasAuthenticationSuccessToUser(cas *CasAuthenticationSuccess) *stora
 	return user
 }
 
-func NewCas(store authenticate, host string, casAddress string, casLoginEndpoint string, casValidateEndpoint string, callbackURL func(context.Context, string) string) *cas {
+func NewCas(store authenticate, host string, prefixURL string, casAddress string, casLoginEndpoint string, casLogoutEndpoint string, casValidateEndpoint string, callbackURL func(context.Context, string) string) *cas {
 	c := &cas{
 		store:               store,
+		prefixURL:           prefixURL,
 		casAddress:          casAddress,
 		casLoginEndpoint:    casLoginEndpoint,
+		casLogoutEndpoint:   casLogoutEndpoint,
 		casValidateEndpoint: casValidateEndpoint,
-		callback:            fmt.Sprintf("%s/cas/callback", host),
+		callback:            fmt.Sprintf("%s%s/cas/callback", host, prefixURL),
+		logoutCallback:      host,
 		clientCallback:      callbackURL,
 	}
 	c.createRouter()
@@ -95,7 +104,18 @@ func NewCas(store authenticate, host string, casAddress string, casLoginEndpoint
 func (c *cas) createRouter() {
 	c.router = mux.NewRouter()
 	c.router.Path("/login").Methods("GET").HandlerFunc(c.loginRedirect)
+	c.router.Path("/logout").Methods("GET").HandlerFunc(c.logoutHandler)
 	c.router.Path("/callback").Methods("GET").HandlerFunc(c.callbackHandler)
+}
+
+func (c *cas) generateCasLoginURL(id string, redirectCount int) string {
+	callbackQueryParams := url.Values{}
+	callbackQueryParams.Set("id", id)
+	callbackQueryParams.Set("c", strconv.Itoa(redirectCount))
+
+	queryParams := url.Values{}
+	queryParams.Set("service", fmt.Sprintf("%s?%s", c.callback, callbackQueryParams.Encode()))
+	return fmt.Sprintf("%s%s?%s", c.casAddress, c.casLoginEndpoint, queryParams.Encode())
 }
 
 func (c *cas) loginRedirect(w http.ResponseWriter, r *http.Request) {
@@ -104,13 +124,18 @@ func (c *cas) loginRedirect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("missing authRequestID query parameter"), http.StatusNotFound)
 		return
 	}
-	callbackQueryParams := url.Values{}
-	callbackQueryParams.Set("id", id)
+	log.Printf("[cas] redirect to cas provider")
+	http.Redirect(w, r, c.generateCasLoginURL(id, 0), http.StatusSeeOther)
+}
 
+func (c *cas) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	queryParams := url.Values{}
-	queryParams.Set("service", fmt.Sprintf("%s?%s", c.callback, callbackQueryParams.Encode()))
+	queryParams.Set("service", c.logoutCallback)
+	logoutCasUrl := fmt.Sprintf("%s%s?%s", c.casAddress, c.casLogoutEndpoint, queryParams.Encode())
 
-	http.Redirect(w, r, fmt.Sprintf("%s%s?%s", c.casAddress, c.casLoginEndpoint, queryParams.Encode()), http.StatusSeeOther)
+	log.Printf("[cas] logoutHandler - %s", logoutCasUrl)
+
+	http.Redirect(w, r, logoutCasUrl, http.StatusSeeOther)
 }
 
 func (c *cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -122,8 +147,27 @@ func (c *cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sometimes a cas provider will redirect the user without a ticket, we just need to send the user back.
+	// We prevent an infinity redirect by adding the "c" query parameter in the callback.
 	if ticket == "" {
-		http.Error(w, fmt.Sprintf("missing ticket query parameter"), http.StatusNotFound)
+		log.Printf("[cas] callback handler called without a ticket in query parameter.")
+		redirectCount := r.FormValue("c")
+		if redirectCount == "" {
+			http.Error(w, fmt.Sprintf("missing ticket and redirectCount query parameter"), http.StatusNotFound)
+			return
+		}
+
+		v, ok := strconv.Atoi(redirectCount)
+		if ok != nil {
+			http.Error(w, fmt.Sprintf("malformed redirect count query parameter (c)."), http.StatusNotFound)
+			return
+		}
+
+		if v > 2 {
+			http.Error(w, fmt.Sprintf("too many redirect, the cas provider has never provided a ticket. Please logout and retry."), http.StatusNotFound)
+		} else {
+			http.Redirect(w, r, c.generateCasLoginURL(id, 0), http.StatusSeeOther)
+		}
 		return
 	}
 
@@ -175,6 +219,11 @@ func (c *cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	callbackUrl := c.clientCallback(r.Context(), id)
-	print("clientCallback: ", callbackUrl)
+
+	if !strings.HasPrefix(callbackUrl, "http") && !strings.HasPrefix(callbackUrl, c.prefixURL) {
+		log.Printf("The callback url does not have the issuer in prefix, and does not have the prefixURL also. Therefore adding it.")
+		callbackUrl = c.prefixURL + callbackUrl
+	}
+
 	http.Redirect(w, r, callbackUrl, http.StatusFound)
 }

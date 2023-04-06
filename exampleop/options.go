@@ -14,6 +14,7 @@ type Options struct {
 	Issuer              string `env:"ISSUER" default:"http://localhost:9998/"`
 	CasAddress          string `env:"CAS_ADDRESS"`
 	CasLoginEndpoint    string `env:"CAS_LOGIN_ENDPOINT" default:"/login"`
+	CasLogoutEndpoint   string `env:"CAS_LOGOUT_ENDPOINT" default:"/logout"`
 	CasValidateEndpoint string `env:"CAS_VALIDATE_ENDPOINT" default:"/serviceValidate"`
 	ClientID            string `env:"CLIENT_ID" default:"web"`
 	ClientSecret        string `env:"CLIENT_SECRET"`

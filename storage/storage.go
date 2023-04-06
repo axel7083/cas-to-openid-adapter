@@ -178,7 +178,6 @@ func (s *Storage) SaveAuthCode(ctx context.Context, id string, code string) erro
 // - authentication request (in an implicit flow)
 // - token request (in an authorization code flow)
 func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
-	print("DeleteAuthRequest\n")
 	// you can simply delete all reference to the auth request
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -186,7 +185,6 @@ func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
 	if request == nil {
 		return fmt.Errorf("request not found")
 	}
-	s.userStore.ClearUserByID(request.UserID)
 
 	delete(s.authRequests, id)
 	for code, requestID := range s.codes {
@@ -598,7 +596,6 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 		return fmt.Errorf("user not found")
 	}
 	for _, scope := range scopes {
-		print(fmt.Sprintf("scope: %s\n", scope))
 		switch scope {
 		case oidc.ScopeOpenID:
 			userInfo.Subject = user.ID

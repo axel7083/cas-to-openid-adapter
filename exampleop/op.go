@@ -2,9 +2,12 @@ package exampleop
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"github.com/axel7083/cas-to-openid-adapter/storage"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,9 +19,9 @@ const (
 	pathLoggedOut = "/logged-out"
 )
 
-func _init(clientID string, clientSecret string, clientRedirectUri string) {
+func _init(clientID string, clientSecret string, prefixUrl string, clientRedirectUri string) {
 	storage.RegisterClients(
-		storage.WebClient(clientID, clientSecret, clientRedirectUri),
+		storage.WebClient(clientID, clientSecret, prefixUrl, clientRedirectUri),
 	)
 }
 
@@ -32,7 +35,11 @@ type Storage interface {
 // Use one of the pre-made clients in storage/clients.go or register a new one.
 func SetupServer(opts Options, storage Storage) *mux.Router {
 	// init the client
-	_init(opts.ClientID, opts.ClientSecret, opts.ClientRedirectURI)
+	_init(opts.ClientID, opts.ClientSecret, opts.PrefixURL, opts.ClientRedirectURI)
+
+	if !strings.HasSuffix(opts.Issuer, opts.PrefixURL) {
+		log.Fatalf("when a prefixURL is used, the issuer must end with it.")
+	}
 
 	// the OpenID Provider requires a 32-byte keys for (token) encryption
 	// be sure to create a proper crypto random keys and manage it securely!
@@ -54,21 +61,47 @@ func SetupServer(opts Options, storage Storage) *mux.Router {
 		log.Fatal(err)
 	}
 
+	u, err := url.Parse(opts.Issuer)
+	if err != nil {
+		log.Fatalf("the issuer url could not be parsed: %s", err.Error())
+	}
+
+	u.Path = ""
+	u.RawQuery = ""
+
 	// the provider will only take care of the OpenID Protocol, so there must be some sort of UI for the login process
 	// for the simplicity of the example this means a simple page with username and password field
 	c := NewCas(
 		storage,
-		opts.Issuer,
+		u.String(),
+		opts.PrefixURL,
 		opts.CasAddress,
 		opts.CasLoginEndpoint,
+		opts.CasLogoutEndpoint,
 		opts.CasValidateEndpoint,
 		op.AuthCallbackURL(provider),
 	)
 
-	router.PathPrefix("/cas/").Handler(http.StripPrefix("/cas", c.router))
-	router.PathPrefix("/").Handler(provider.HttpHandler())
+	router.PathPrefix(opts.PrefixURL + "/cas/").Handler(http.StripPrefix(opts.PrefixURL+"/cas", c.router))
+	router.PathPrefix(opts.PrefixURL).Handler(http.StripPrefix(opts.PrefixURL, provider.HttpHandler()))
+
+	router.NotFoundHandler = customNotFoundHandler()
 
 	return router
+}
+
+func customNotFoundHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("handling 404")
+		// Get the requested URI from the request object
+		uri := r.URL.RequestURI()
+
+		// Set the response status code to 404 Not Found
+		w.WriteHeader(http.StatusNotFound)
+
+		// Write the URI to the response body
+		fmt.Fprintf(w, "404: Page not found - %s", uri)
+	})
 }
 
 // newOP will create an OpenID Provider for localhost on a specified port with a given encryption keys
@@ -112,6 +145,7 @@ func newOP(storage op.Storage, issuer string, key [32]byte) (op.OpenIDProvider, 
 		// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
 		op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
 	)
+
 	if err != nil {
 		return nil, err
 	}
