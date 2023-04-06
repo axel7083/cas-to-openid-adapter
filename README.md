@@ -31,9 +31,11 @@ You can configure the adapter with environement variable:
 |-----------------------|--------------------------------------|-------------------------------------------------|
 | HOST                  | localhost                            | The host address to listen to                   |
 | PORT                  | 9998                                 | The host port to listen to                      |
+| PREFIX_URL            |                                      | The prefix url to use for request routing/callback       |
 | ISSUER                | http://localhost:9998/               | The issuer for the JWT token                    |
-| CAS_ADDRESS           | ❌                                    | The CAS address to use                          |
+| CAS_ADDRESS           | ❌                                   | The CAS address to use                          |
 | CAS_LOGIN_ENDPOINT    | /login                               | The CAS endpoint to use for login               |
+| CAS_LOGOUT_ENDPOINT    | /logout                              | The CAS endpoint to use for logout             |
 | CAS_VALIDATE_ENDPOINT | /serviceValidate                     | The CAS endpoint to use for validate the ticket |
 | CLIENT_ID             | web                                  | The Client id to use for the OpenID protocol.   |
 | CLIENT_SECRET         | ❌                                    | Client secret to use by the OpenID client       |
