@@ -4,6 +4,10 @@ This project has been made to create an adapter between a cas Authentication ser
 
 The code is mainly from [zitadel/oidc](https://github.com/zitadel/oidc/tree/v2.2.3/example/server) as they provide a service example implementation for OpenID protocol.
 
+## Usage
+
+The docker image `axel7083/cas-to-oidc-adapter:v0.2-release`
+
 ## Setup
 
 ### Generate RSA keys
