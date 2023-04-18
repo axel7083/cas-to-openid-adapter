@@ -8,21 +8,24 @@ import (
 )
 
 type Options struct {
-	Host                string `env:"HOST" default:"localhost"`
-	Port                string `env:"PORT" default:"9998"`
-	PrefixURL           string `env:"PREFIX_URL" default:""`
-	Issuer              string `env:"ISSUER" default:"http://localhost:9998/"`
-	CasAddress          string `env:"CAS_ADDRESS"`
-	CasLoginEndpoint    string `env:"CAS_LOGIN_ENDPOINT" default:"/login"`
-	CasLogoutEndpoint   string `env:"CAS_LOGOUT_ENDPOINT" default:"/logout"`
-	CasValidateEndpoint string `env:"CAS_VALIDATE_ENDPOINT" default:"/serviceValidate"`
-	ClientID            string `env:"CLIENT_ID" default:"web"`
-	ClientSecret        string `env:"CLIENT_SECRET"`
-	ClientRedirectURI   string `env:"CLIENT_REDIRECT_URI" default:"http://localhost:9999/auth/callback"`
-	OpenIDKeyPhrase     string `env:"OPENID_KEY_PHRASE"`
-	SigningPrivateKey   string `env:"SIGNING_PRIVATE_KEY"`
-	SigningPublicKey    string `env:"SIGNING_PUBLIC_KEY"`
-	SigningKeyID        string `env:"SIGNING_KEY_ID" default:"682a39b4-cf9f-40de-9fdd-b5c78ff07fe4"`
+	Host                   string `env:"HOST" default:"localhost"`
+	Port                   string `env:"PORT" default:"9998"`
+	PrefixURL              string `env:"PREFIX_URL" default:""`
+	Issuer                 string `env:"ISSUER" default:"http://localhost:9998/"`
+	CasAddress             string `env:"CAS_ADDRESS"`
+	CasLoginEndpoint       string `env:"CAS_LOGIN_ENDPOINT" default:"/login"`
+	CasLogoutEndpoint      string `env:"CAS_LOGOUT_ENDPOINT" default:"/logout"`
+	CasValidateEndpoint    string `env:"CAS_VALIDATE_ENDPOINT" default:"/serviceValidate"`
+	ClientID               string `env:"CLIENT_ID" default:"web"`
+	ClientSecret           string `env:"CLIENT_SECRET"`
+	ClientRedirectURI      string `env:"CLIENT_REDIRECT_URI" default:"http://localhost:9999/auth/callback"`
+	OpenIDKeyPhrase        string `env:"OPENID_KEY_PHRASE"`
+	SigningPrivateKey      string `env:"SIGNING_PRIVATE_KEY"`
+	SigningPublicKey       string `env:"SIGNING_PUBLIC_KEY"`
+	SigningKeyID           string `env:"SIGNING_KEY_ID" default:"682a39b4-cf9f-40de-9fdd-b5c78ff07fe4"`
+	InjectedGroups         string `env:"INJECT_GROUPS" default:""`
+	ExternalGroupsProvider string `env:"EXTERNAL_GROUPS_PROVIDER" default:""`
+	EgpHeader              string `env:"EXTERNAL_GROUPS_PROVIDER_HEADER" default:"user-id"`
 }
 
 // getOptionsFromEnv retrieves options for a service from environment variables.

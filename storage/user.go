@@ -17,6 +17,7 @@ type User struct {
 	PhoneVerified     bool
 	PreferredLanguage language.Tag
 	IsAdmin           bool
+	Groups            []string
 }
 
 type Service struct {

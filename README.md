@@ -44,6 +44,18 @@ You can configure the adapter with environement variable:
 | SIGNING_PRIVATE_KEY   | ❌                                    | The path to the private signing key.            |
 | SIGNING_PUBLIC_KEY    | ❌                                    | The path to the public singing key.             |
 | SIGNING_KEY_ID        | 682a39b4-cf9f-40de-9fdd-b5c78ff07fe4 | The key ID                                      |
+| INJECT_GROUPS        | ❌ | the groups to inject to *every* user that logged in.                                      |
+
+### External Groups Provider
+
+This is just a simple optional system to allow to fetch user's groups from an external sources. The cas protocols does not have a concept of groups, therefore we can provide the following arguments:
+| env                   | default                              | description                                     |
+|-----------------------|--------------------------------------|-------------------------------------------------|
+| EXTERNAL_GROUPS_PROVIDER                  | ❌               | The address to fetch the groups from  |
+| EXTERNAL_GROUPS_PROVIDER_HEADER                  | "user-id" | The header key for the user's email address to inject   |
+
+The external groups provider must respond with a json array of strings, thus will be interpreted as its groups.
+
 
 ## Status
 

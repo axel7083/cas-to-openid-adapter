@@ -19,17 +19,18 @@ type authenticate interface {
 	ValidateRequest(user *storage.User, id string) error
 }
 
-type cas struct {
-	store               authenticate
-	prefixURL           string
-	casAddress          string
-	casLoginEndpoint    string
-	casLogoutEndpoint   string
-	casValidateEndpoint string
-	router              *mux.Router
-	callback            string
-	logoutCallback      string
-	clientCallback      func(context.Context, string) string
+type Cas struct {
+	store                  authenticate
+	prefixURL              string
+	casAddress             string
+	casLoginEndpoint       string
+	casLogoutEndpoint      string
+	casValidateEndpoint    string
+	router                 *mux.Router
+	callback               string
+	logoutCallback         string
+	clientCallback         func(context.Context, string) string
+	externalGroupsProvider *ExternalGroupsProvider
 }
 
 type CasServiceResponse struct {
@@ -85,30 +86,41 @@ func ConvertCasAuthenticationSuccessToUser(cas *CasAuthenticationSuccess) *stora
 	return user
 }
 
-func NewCas(store authenticate, host string, prefixURL string, casAddress string, casLoginEndpoint string, casLogoutEndpoint string, casValidateEndpoint string, callbackURL func(context.Context, string) string) *cas {
-	c := &cas{
-		store:               store,
-		prefixURL:           prefixURL,
-		casAddress:          casAddress,
-		casLoginEndpoint:    casLoginEndpoint,
-		casLogoutEndpoint:   casLogoutEndpoint,
-		casValidateEndpoint: casValidateEndpoint,
-		callback:            fmt.Sprintf("%s%s/cas/callback", host, prefixURL),
-		logoutCallback:      host,
-		clientCallback:      callbackURL,
+func NewCas(
+	store authenticate,
+	host string,
+	prefixURL string,
+	casAddress string,
+	casLoginEndpoint string,
+	casLogoutEndpoint string,
+	casValidateEndpoint string,
+	callbackURL func(context.Context, string) string,
+	externalGroupsProvider *ExternalGroupsProvider,
+) *Cas {
+	c := &Cas{
+		store:                  store,
+		prefixURL:              prefixURL,
+		casAddress:             casAddress,
+		casLoginEndpoint:       casLoginEndpoint,
+		casLogoutEndpoint:      casLogoutEndpoint,
+		casValidateEndpoint:    casValidateEndpoint,
+		callback:               fmt.Sprintf("%s%s/cas/callback", host, prefixURL),
+		logoutCallback:         host,
+		clientCallback:         callbackURL,
+		externalGroupsProvider: externalGroupsProvider,
 	}
 	c.createRouter()
 	return c
 }
 
-func (c *cas) createRouter() {
+func (c *Cas) createRouter() {
 	c.router = mux.NewRouter()
 	c.router.Path("/login").Methods("GET").HandlerFunc(c.loginRedirect)
 	c.router.Path("/logout").Methods("GET").HandlerFunc(c.logoutHandler)
 	c.router.Path("/callback").Methods("GET").HandlerFunc(c.callbackHandler)
 }
 
-func (c *cas) generateCasLoginURL(id string, redirectCount int) string {
+func (c *Cas) generateCasLoginURL(id string, redirectCount int) string {
 	callbackQueryParams := url.Values{}
 	callbackQueryParams.Set("id", id)
 	callbackQueryParams.Set("c", strconv.Itoa(redirectCount))
@@ -118,7 +130,7 @@ func (c *cas) generateCasLoginURL(id string, redirectCount int) string {
 	return fmt.Sprintf("%s%s?%s", c.casAddress, c.casLoginEndpoint, queryParams.Encode())
 }
 
-func (c *cas) loginRedirect(w http.ResponseWriter, r *http.Request) {
+func (c *Cas) loginRedirect(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("authRequestID")
 	if id == "" {
 		http.Error(w, fmt.Sprintf("missing authRequestID query parameter"), http.StatusNotFound)
@@ -128,7 +140,7 @@ func (c *cas) loginRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, c.generateCasLoginURL(id, 0), http.StatusSeeOther)
 }
 
-func (c *cas) logoutHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Cas) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	queryParams := url.Values{}
 	queryParams.Set("service", c.logoutCallback)
 	logoutCasUrl := fmt.Sprintf("%s%s?%s", c.casAddress, c.casLogoutEndpoint, queryParams.Encode())
@@ -138,7 +150,7 @@ func (c *cas) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, logoutCasUrl, http.StatusSeeOther)
 }
 
-func (c *cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	ticket := r.URL.Query().Get("ticket")
 
 	id := r.FormValue("id")
@@ -209,8 +221,22 @@ func (c *cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := ConvertCasAuthenticationSuccessToUser(response.AuthenticationSuccess)
+
+	// Since the cas protocol is not providing the groups
+	// we allow external provider to provide them
+	// This is not really secure
+	if c.externalGroupsProvider != nil {
+		groups, err := c.externalGroupsProvider.GetGroups(user.Email)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		user.Groups = groups
+	}
+
 	err = c.store.ValidateRequest(
-		ConvertCasAuthenticationSuccessToUser(response.AuthenticationSuccess),
+		user,
 		id,
 	)
 	if err != nil {

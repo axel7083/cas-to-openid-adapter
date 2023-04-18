@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func loadPrivateKey(file string) (*rsa.PrivateKey, error) {
@@ -92,7 +93,13 @@ func main() {
 		log.Fatal("error loading public keys from file:", err)
 	}
 
-	oidcStorage := storage.NewStorage(storage.NewUserStore(), privateKey, opts.SigningKeyID, publicKey)
+	var groups []string
+	if opts.InjectedGroups != "" {
+		groups = strings.Split(opts.InjectedGroups, ",")
+		log.Printf("the INJECT_GROUPS has been configured for the following: %v", groups)
+	}
+
+	oidcStorage := storage.NewStorage(storage.NewUserStore(), privateKey, opts.SigningKeyID, publicKey, groups)
 
 	log.Printf("creating server with prefix %s", opts.PrefixURL)
 	router := exampleop.SetupServer(opts, oidcStorage)

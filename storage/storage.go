@@ -23,18 +23,19 @@ var _ op.ClientCredentialsStorage = &Storage{}
 // typically you would implement this as a layer on top of your database
 // for simplicity this example keeps everything in-memory
 type Storage struct {
-	lock          sync.Mutex
-	authRequests  map[string]*AuthRequest
-	codes         map[string]string
-	tokens        map[string]*Token
-	clients       map[string]*Client
-	userStore     UserStore
-	services      map[string]Service
-	refreshTokens map[string]*RefreshToken
-	signingKey    signingKey
-	deviceCodes   map[string]deviceAuthorizationEntry
-	userCodes     map[string]string
-	serviceUsers  map[string]*Client
+	lock           sync.Mutex
+	authRequests   map[string]*AuthRequest
+	codes          map[string]string
+	tokens         map[string]*Token
+	clients        map[string]*Client
+	userStore      UserStore
+	services       map[string]Service
+	refreshTokens  map[string]*RefreshToken
+	signingKey     signingKey
+	deviceCodes    map[string]deviceAuthorizationEntry
+	userCodes      map[string]string
+	serviceUsers   map[string]*Client
+	injectedGroups []string
 }
 
 type signingKey struct {
@@ -75,7 +76,7 @@ func (s *publicKey) Key() interface{} {
 	return &s.key.PublicKey
 }
 
-func NewStorage(userStore UserStore, privateKey *rsa.PrivateKey, keyId string, publicKey *rsa.PublicKey) *Storage {
+func NewStorage(userStore UserStore, privateKey *rsa.PrivateKey, keyId string, publicKey *rsa.PublicKey, injectedGroups []string) *Storage {
 	return &Storage{
 		authRequests:  make(map[string]*AuthRequest),
 		codes:         make(map[string]string),
@@ -95,9 +96,10 @@ func NewStorage(userStore UserStore, privateKey *rsa.PrivateKey, keyId string, p
 			algorithm: jose.RS256,
 			key:       privateKey,
 		},
-		deviceCodes:  make(map[string]deviceAuthorizationEntry),
-		userCodes:    make(map[string]string),
-		serviceUsers: map[string]*Client{},
+		deviceCodes:    make(map[string]deviceAuthorizationEntry),
+		userCodes:      make(map[string]string),
+		serviceUsers:   map[string]*Client{},
+		injectedGroups: injectedGroups,
 	}
 }
 
@@ -481,10 +483,23 @@ func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, client
 }
 
 func (s *Storage) getPrivateClaimsFromScopes(ctx context.Context, userID, clientID string, scopes []string) (claims map[string]interface{}, err error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	user := s.userStore.GetUserByID(userID)
+
+	if user == nil {
+		panic("getPrivateClaimsFromScopes: user not found")
+	}
+
 	for _, scope := range scopes {
 		switch scope {
-		case CustomScope:
-			claims = appendClaim(claims, CustomClaim, customClaim(clientID))
+		case GroupsScope:
+			// First we copy the injected groups
+			combined := append([]string{}, s.injectedGroups...)
+			// Then we add the user groups from the potential external groups provider
+			combined = append(combined, user.Groups...)
+
+			claims = appendClaim(claims, GroupsClaim, s.injectedGroups)
 		}
 	}
 	return claims, nil
@@ -611,9 +626,12 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 		case oidc.ScopePhone:
 			userInfo.PhoneNumber = user.Phone
 			userInfo.PhoneNumberVerified = user.PhoneVerified
-		case CustomScope:
-			// you can also have a custom scope and assert public or custom claims based on that
-			userInfo.AppendClaims(CustomClaim, customClaim(clientID))
+		case GroupsScope:
+			// First we copy the injected groups
+			combined := append([]string{}, s.injectedGroups...)
+			// Then we add the user groups from the potential external groups provider
+			combined = append(combined, user.Groups...)
+			userInfo.AppendClaims(GroupsClaim, combined)
 		}
 	}
 	return nil

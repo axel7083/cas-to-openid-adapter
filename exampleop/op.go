@@ -66,6 +66,11 @@ func SetupServer(opts Options, storage Storage) *mux.Router {
 		log.Fatalf("the issuer url could not be parsed: %s", err.Error())
 	}
 
+	var externalGroupsProvider *ExternalGroupsProvider = nil
+	if opts.ExternalGroupsProvider != "" {
+		externalGroupsProvider = NewExternalGroupsProvider(opts.ExternalGroupsProvider, opts.EgpHeader)
+	}
+
 	u.Path = ""
 	u.RawQuery = ""
 
@@ -80,6 +85,7 @@ func SetupServer(opts Options, storage Storage) *mux.Router {
 		opts.CasLogoutEndpoint,
 		opts.CasValidateEndpoint,
 		op.AuthCallbackURL(provider),
+		externalGroupsProvider,
 	)
 
 	router.PathPrefix(opts.PrefixURL + "/cas/").Handler(http.StripPrefix(opts.PrefixURL+"/cas", c.router))
