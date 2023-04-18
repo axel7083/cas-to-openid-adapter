@@ -6,7 +6,7 @@ The code is mainly from [zitadel/oidc](https://github.com/zitadel/oidc/tree/v2.2
 
 ## Usage
 
-The docker image `axel7083/cas-to-oidc-adapter:v0.2-release`
+The docker image `docker.io/axel7083/cas-to-oidc-adapter:v0.3-beta`
 
 ## Setup
 
