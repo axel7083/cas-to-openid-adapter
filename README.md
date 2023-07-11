@@ -6,7 +6,7 @@ The code is mainly from [zitadel/oidc](https://github.com/zitadel/oidc/tree/v2.2
 
 ## Usage
 
-The docker image `docker.io/axel7083/cas-to-oidc-adapter:v0.3-beta`
+The docker image `docker.io/axel7083/cas-to-oidc-adapter:v0.4.2`
 
 ## Setup
 
@@ -39,7 +39,7 @@ You can configure the adapter with environement variable:
 | CAS_VALIDATE_ENDPOINT | /serviceValidate                     | The CAS endpoint to use for validate the ticket |
 | CLIENT_ID             | web                                  | The Client id to use for the OpenID protocol.   |
 | CLIENT_SECRET         | ❌                                    | Client secret to use by the OpenID client       |
-| CLIENT_REDIRECT_URI   | http://localhost:9999/auth/callback  | redirect URI allowed for the OpenID client      |
+| CLIENT_REDIRECT_URIs   | http://localhost:9999/auth/callback  | redirect URIs allowed for the OpenID client (separated by comma)     |
 | OPENID_KEY_PHRASE     | ❌                                    | will be sha256-sum and used for encryption      |
 | SIGNING_PRIVATE_KEY   | ❌                                    | The path to the private signing key.            |
 | SIGNING_PUBLIC_KEY    | ❌                                    | The path to the public singing key.             |

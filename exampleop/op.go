@@ -19,9 +19,11 @@ const (
 	pathLoggedOut = "/logged-out"
 )
 
-func _init(clientID string, clientSecret string, prefixUrl string, clientRedirectUri string) {
+func _init(clientID string, clientSecret string, prefixUrl string, clientRedirectUris string) {
+	redirects := strings.Split(clientRedirectUris, ",")
+	log.Printf("Configuring client with %d redirects: %v.", len(redirects), redirects)
 	storage.RegisterClients(
-		storage.WebClient(clientID, clientSecret, prefixUrl, clientRedirectUri),
+		storage.WebClient(clientID, clientSecret, prefixUrl, redirects...),
 	)
 }
 
@@ -35,7 +37,7 @@ type Storage interface {
 // Use one of the pre-made clients in storage/clients.go or register a new one.
 func SetupServer(opts Options, storage Storage) *mux.Router {
 	// init the client
-	_init(opts.ClientID, opts.ClientSecret, opts.PrefixURL, opts.ClientRedirectURI)
+	_init(opts.ClientID, opts.ClientSecret, opts.PrefixURL, opts.ClientRedirectURIs)
 
 	if !strings.HasSuffix(opts.Issuer, opts.PrefixURL) {
 		log.Fatalf("when a prefixURL is used, the issuer must end with it.")

@@ -18,7 +18,7 @@ type Options struct {
 	CasValidateEndpoint    string `env:"CAS_VALIDATE_ENDPOINT" default:"/serviceValidate"`
 	ClientID               string `env:"CLIENT_ID" default:"web"`
 	ClientSecret           string `env:"CLIENT_SECRET"`
-	ClientRedirectURI      string `env:"CLIENT_REDIRECT_URI" default:"http://localhost:9999/auth/callback"`
+	ClientRedirectURIs     string `env:"CLIENT_REDIRECT_URIs" default:"http://localhost:9999/auth/callback"`
 	OpenIDKeyPhrase        string `env:"OPENID_KEY_PHRASE"`
 	SigningPrivateKey      string `env:"SIGNING_PRIVATE_KEY"`
 	SigningPublicKey       string `env:"SIGNING_PUBLIC_KEY"`

@@ -247,7 +247,7 @@ func (c *Cas) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	callbackUrl := c.clientCallback(r.Context(), id)
 
 	if !strings.HasPrefix(callbackUrl, "http") && !strings.HasPrefix(callbackUrl, c.prefixURL) {
-		log.Printf("The callback url does not have the issuer in prefix, and does not have the prefixURL also. Therefore adding it.")
+		log.Printf("The callback url %s does not have the issuer in prefix, and does not have the prefixURL also. Therefore adding it (%s).", callbackUrl, c.prefixURL)
 		callbackUrl = c.prefixURL + callbackUrl
 	}
 
